@@ -1,27 +1,35 @@
-name: First Workflow
+name: Azure Bicep
 
 on:
-  workflow_dispatch:
-  issues:
-    types: [opened]
+  workflow_dispatch
+
+env:
+  targetEnv: dev
 
 jobs:
-  job1:
+  build-and-deploy:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
-    - name: Step one
-      run: echo "Log from step one"
-    - name: Step two
-      run: echo "Log from step two"
-      
-  job2:
-    needs: job1
-    runs-on: ubuntu-latest
+    # Checkout code
+    - uses: actions/checkout@main
 
-    steps:
-    - name: Cowsays
-      uses: mscoutermarsh/cowsays-action@master
+      # Log into Azure
+    - uses: azure/login@v2.1.1
       with:
-        text: 'Ready for prod--ship it!'
-        color: 'magenta'
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true
+
+      # Deploy ARM template
+    - name: Run ARM deploy
+      uses: azure/arm-deploy@v1
+      with:
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        resourceGroupName: ${{ secrets.AZURE_RG }}
+        template: ./src/InfrastructureAsCode/main.bicep
+        parameters: environment=${{ env.targetEnv }}
